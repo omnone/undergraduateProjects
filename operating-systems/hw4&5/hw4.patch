@@ -1,0 +1,113 @@
+diff --git a/kernel/system/do_fork.c b/kernel/system/do_fork.c
+index f309270..4a0800b 100644
+--- a/kernel/system/do_fork.c
++++ b/kernel/system/do_fork.c
+@@ -122,7 +122,7 @@ int do_fork(struct proc * caller, message * m_ptr)
+   rpc->p_seg.p_ttbr = 0;
+   rpc->p_seg.p_ttbr_v = NULL;
+ #endif
+-
++printf("process forked\n");
+   return OK;
+ }
+ 
+diff --git a/lib/libsys/sys_fork.c b/lib/libsys/sys_fork.c
+index 811e230..21508a3 100644
+--- a/lib/libsys/sys_fork.c
++++ b/lib/libsys/sys_fork.c
+@@ -18,5 +18,6 @@ vir_bytes *msgaddr;
+   r = _kernel_call(SYS_FORK, &m);
+   *child_endpoint = m.PR_ENDPT;
+   *msgaddr = (vir_bytes) m.PR_FORK_MSGADDR;
+-  return r;
++  
++return r;
+ }
+diff --git a/servers/pm/misc.c b/servers/pm/misc.c
+index dbe979f..6e4b13d 100644
+--- a/servers/pm/misc.c
++++ b/servers/pm/misc.c
+@@ -61,6 +61,17 @@ static char *uts_tbl[] = {
+ unsigned long calls_stats[NCALLS];
+ #endif
+ 
++
++/*=========================do_psnumber==================*/
++int do_psnumber(){
++ // printf("processes running = %d\n",procs_in_use);
++  return procs_in_use;
++
++
++
++}
++
++
+ /*===========================================================================*
+  *				do_sysuname				     *
+  *===========================================================================*/
+diff --git a/servers/pm/proto.h b/servers/pm/proto.h
+index 00646d3..b7483e8 100644
+--- a/servers/pm/proto.h
++++ b/servers/pm/proto.h
+@@ -56,7 +56,7 @@ int do_getepinfo(void);
+ int do_getepinfo_o(void);
+ int do_svrctl(void);
+ int do_getsetpriority(void);
+-
++int do_psnumber(void);
+ /* schedule.c */
+ void sched_init(void);
+ int sched_start_user(endpoint_t ep, struct mproc *rmp);
+diff --git a/servers/pm/table.c b/servers/pm/table.c
+index 5051cec..99476b5 100644
+--- a/servers/pm/table.c
++++ b/servers/pm/table.c
+@@ -80,7 +80,7 @@ int (*call_vec[])(void) = {
+ 	do_set, 	/* 66 = setgroups */
+ 	do_getmcontext,	/* 67 = getmcontext */
+ 	do_setmcontext,	/* 68 = setmcontext */
+-	no_sys,		/* 69 = unused	*/
++	do_psnumber,		/* 69 = do_psnumber*/
+ 	no_sys,		/* 70 = unused	*/
+ 	do_sigaction,	/* 71 = sigaction   */
+ 	do_sigsuspend,	/* 72 = sigsuspend  */
+diff --git a/servers/vfs/protect.c b/servers/vfs/protect.c
+index 70a4536..187a7e5 100644
+--- a/servers/vfs/protect.c
++++ b/servers/vfs/protect.c
+@@ -49,14 +49,18 @@ int do_chmod()
+   lookup_init(&resolve, fullpath, PATH_NOFLAGS, &vmp, &vp);
+   resolve.l_vmnt_lock = VMNT_READ;
+   resolve.l_vnode_lock = VNODE_WRITE;
++  
++  
+ 
+   if (job_call_nr == CHMOD) {
+ 	/* Temporarily open the file */
+ 	if (copy_name(vname_length, fullpath) != OK) {
+ 		/* Direct copy failed, try fetching from user space */
+ 		if (fetch_name(vname, vname_length, fullpath) != OK)
+-			return(err_code);
+-	}
++
++return(err_code) ;
++                       
++}
+ 	if ((vp = eat_path(&resolve, fp)) == NULL) return(err_code);
+   } else {	/* call_nr == FCHMOD */
+ 	/* File is already opened; get a pointer to vnode from filp. */
+@@ -90,11 +94,14 @@ int do_chmod()
+   } else {	/* FCHMOD */
+ 	unlock_filp(flp);
+   }
++printf("chmod: %s %3o\n",fullpath,result_mode&0777); 
++
+ 
+   put_vnode(vp);
+   return(r);
+ }
+ 
++ 
+ 
+ /*===========================================================================*
+  *				do_chown				     *

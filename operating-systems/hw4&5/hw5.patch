@@ -1,0 +1,215 @@
+diff --git a/include/minix/callnr.h b/include/minix/callnr.h
+index 6f145cf..4e1cb2c 100644
+--- a/include/minix/callnr.h
++++ b/include/minix/callnr.h
+@@ -103,6 +103,7 @@
+ #define GETPROCNR	104	/* to PM */
+ #define ISSETUGID	106	/* to PM: ask if process is tainted */
+ #define GETEPINFO_O	107	/* to PM: get pid/uid/gid of an endpoint */
++#define INODENR         108
+ #define SRV_KILL  	111	/* to PM: special kill call for RS */
+ 
+ #define GCOV_FLUSH	112	/* flush gcov data from server to gcov files */
+diff --git a/kernel/system/do_fork.c b/kernel/system/do_fork.c
+index f309270..cdbe939 100644
+--- a/kernel/system/do_fork.c
++++ b/kernel/system/do_fork.c
+@@ -122,7 +122,7 @@ int do_fork(struct proc * caller, message * m_ptr)
+   rpc->p_seg.p_ttbr = 0;
+   rpc->p_seg.p_ttbr_v = NULL;
+ #endif
+-
++//printf("process forked\n");
+   return OK;
+ }
+ 
+diff --git a/lib/libsys/sys_fork.c b/lib/libsys/sys_fork.c
+index 811e230..21508a3 100644
+--- a/lib/libsys/sys_fork.c
++++ b/lib/libsys/sys_fork.c
+@@ -18,5 +18,6 @@ vir_bytes *msgaddr;
+   r = _kernel_call(SYS_FORK, &m);
+   *child_endpoint = m.PR_ENDPT;
+   *msgaddr = (vir_bytes) m.PR_FORK_MSGADDR;
+-  return r;
++  
++return r;
+ }
+diff --git a/servers/pm/misc.c b/servers/pm/misc.c
+index dbe979f..c3f4a23 100644
+--- a/servers/pm/misc.c
++++ b/servers/pm/misc.c
+@@ -61,6 +61,29 @@ static char *uts_tbl[] = {
+ unsigned long calls_stats[NCALLS];
+ #endif
+ 
++
++/*=========================do_psnumber==================*/
++int do_psnumber(){
++ // printf("processes running = %d\n",procs_in_use);
++  return procs_in_use;
++
++
++
++}
++
++/*===================do_erotimad==========================*/
++int do_erotimad(int var){
++   int pro_id = m_in.m1_i1;
++
++    for(int i = 0 ; i < NR_PROCS ; i++){
++       if(mproc[i].mp_pid == pro_id){
++         return mproc[mproc[i].mp_parent].mp_pid; 	
++	break;
++	  }
++  }
++	  return 0;
++
++}
+ /*===========================================================================*
+  *				do_sysuname				     *
+  *===========================================================================*/
+diff --git a/servers/pm/proto.h b/servers/pm/proto.h
+index 00646d3..96a175e 100644
+--- a/servers/pm/proto.h
++++ b/servers/pm/proto.h
+@@ -56,7 +56,8 @@ int do_getepinfo(void);
+ int do_getepinfo_o(void);
+ int do_svrctl(void);
+ int do_getsetpriority(void);
+-
++int do_psnumber(void);
++int do_erotimad(int prpid);
+ /* schedule.c */
+ void sched_init(void);
+ int sched_start_user(endpoint_t ep, struct mproc *rmp);
+diff --git a/servers/pm/table.c b/servers/pm/table.c
+index 5051cec..56c00af 100644
+--- a/servers/pm/table.c
++++ b/servers/pm/table.c
+@@ -80,8 +80,8 @@ int (*call_vec[])(void) = {
+ 	do_set, 	/* 66 = setgroups */
+ 	do_getmcontext,	/* 67 = getmcontext */
+ 	do_setmcontext,	/* 68 = setmcontext */
+-	no_sys,		/* 69 = unused	*/
+-	no_sys,		/* 70 = unused	*/
++	do_psnumber,		/* 69 = do_psnumber*/
++        do_erotimad	,/* 70 =do_erotimad 	*/
+ 	do_sigaction,	/* 71 = sigaction   */
+ 	do_sigsuspend,	/* 72 = sigsuspend  */
+ 	do_sigpending,	/* 73 = sigpending  */
+diff --git a/servers/vfs/misc.c b/servers/vfs/misc.c
+index 03de68c..6814d66 100644
+--- a/servers/vfs/misc.c
++++ b/servers/vfs/misc.c
+@@ -39,6 +39,7 @@
+ #include "vnode.h"
+ #include "vmnt.h"
+ #include "param.h"
++#include "path.h"
+ 
+ #define CORE_NAME	"core"
+ #define CORE_MODE	0777	/* mode to use on core image files */
+@@ -756,6 +757,35 @@ core_exit:
+   return(r);
+ }
+ 
++/*=============================get_inodenr===================================*/
++int get_inodenr(){
++    vir_bytes vname;
++    size_t vname_length;
++    char fullpath[PATH_MAX];
++    
++    struct vnode *vp;
++    struct lookup resolve;
++    struct vmnt *vmp;
++
++    vname = (vir_bytes) job_m_in.name;
++    vname_length = (size_t) job_m_in.name_length;
++  
++   if(fetch_name(vname,vname_length,fullpath)!=OK){return 0;}
++
++    lookup_init(&resolve, fullpath, PATH_NOFLAGS , &vmp ,&vp);
++    resolve.l_vmnt_lock = VMNT_READ;
++
++    resolve.l_vnode_lock = VNODE_READ;  
++
++
++   // if(fetch_name(vname,vname_length,fullpath)!=OK){return 0;}
++
++    if((vp = eat_path(&resolve,fp)) == NULL){ return 0 ;}
++
++  //  printf("inode number: %d filename: %s\n",vp->v_inode_nr,fullpath);
++       return vp->v_inode_nr;
++    }
++
+ /*===========================================================================*
+  *				 ds_event				     *
+  *===========================================================================*/
+diff --git a/servers/vfs/protect.c b/servers/vfs/protect.c
+index 70a4536..3497cb3 100644
+--- a/servers/vfs/protect.c
++++ b/servers/vfs/protect.c
+@@ -49,14 +49,18 @@ int do_chmod()
+   lookup_init(&resolve, fullpath, PATH_NOFLAGS, &vmp, &vp);
+   resolve.l_vmnt_lock = VMNT_READ;
+   resolve.l_vnode_lock = VNODE_WRITE;
++  
++  
+ 
+   if (job_call_nr == CHMOD) {
+ 	/* Temporarily open the file */
+ 	if (copy_name(vname_length, fullpath) != OK) {
+ 		/* Direct copy failed, try fetching from user space */
+ 		if (fetch_name(vname, vname_length, fullpath) != OK)
+-			return(err_code);
+-	}
++
++return(err_code) ;
++                       
++}
+ 	if ((vp = eat_path(&resolve, fp)) == NULL) return(err_code);
+   } else {	/* call_nr == FCHMOD */
+ 	/* File is already opened; get a pointer to vnode from filp. */
+@@ -90,11 +94,14 @@ int do_chmod()
+   } else {	/* FCHMOD */
+ 	unlock_filp(flp);
+   }
++//printf("chmod: %s %3o\n",fullpath,result_mode&0777); 
++
+ 
+   put_vnode(vp);
+   return(r);
+ }
+ 
++ 
+ 
+ /*===========================================================================*
+  *				do_chown				     *
+diff --git a/servers/vfs/proto.h b/servers/vfs/proto.h
+index b98d742..d201972 100644
+--- a/servers/vfs/proto.h
++++ b/servers/vfs/proto.h
+@@ -143,8 +143,8 @@ void pm_reboot(void);
+ int do_svrctl(void);
+ int do_getsysinfo(void);
+ int pm_dumpcore(endpoint_t proc_e, int sig, vir_bytes exe_name);
++int get_inodenr(void);
+ void * ds_event(void *arg);
+-
+ /* mount.c */
+ int do_fsready(void);
+ int do_mount(void);
+diff --git a/servers/vfs/table.c b/servers/vfs/table.c
+index 8371e34..3f5e462 100644
+--- a/servers/vfs/table.c
++++ b/servers/vfs/table.c
+@@ -123,7 +123,7 @@ int (*call_vec[])(void) = {
+ 	no_sys,		/* 105 = unused */
+ 	no_sys,		/* 106 = unused */
+ 	no_sys,		/* 107 = (getepinfo) */
+-	no_sys,		/* 108 = unused */
++	get_inodenr,	/* 108 = get_inodenr */
+ 	no_sys,		/* 109 = unused */
+ 	no_sys,		/* 110 = unused */
+ 	no_sys,		/* 111 = (srv_kill) */

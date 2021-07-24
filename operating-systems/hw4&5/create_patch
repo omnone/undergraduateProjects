@@ -1,0 +1,7 @@
+# Script for generating a patch file with all changes of /usr/src
+
+cd /usr/src
+git add -u
+git diff --staged > ~/changes.patch
+cd -
+
