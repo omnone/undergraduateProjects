@@ -2,7 +2,7 @@
 
 **Some** of the projects that I developed as an undergraduate student at [Computer Engineering and Informatics Dept. University of Patras](https://www.ceid.upatras.gr/)
 
-Project  | Description | Language, libraries etc
+Project  | Description | Keywords
 ------------- | ------------- | ------------
 [E-Commerce][ecomm]  |  Implementation of an online eshop using OpenCart |PHP , HTML , JS
 [Scientific Computing][sccomp]  |  Matrix operations, tensors operations , BCRS format etc. | Matlab
