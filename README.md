@@ -12,7 +12,9 @@ Project  | Description | Language, libraries etc
 [Parallel processing][parale] | Optimization and parallelization of a given program | C, OpenMP, SIMD
 [Web Programming][web] | A RESTful Ordering & Managing Application made for an imaginary online food delivery and take away company | Node.js
 [Algorithm Engineering][alg] | Implementation of various algorithms like GomoryHu , Dijkstra , A* | C++
+[Programming Languages & Compilers][compil] | Flex/Bison based lexer/parser for lexical and semantic analysis of a dummy , C like language| Bison, Yacc , C
 
+[compil]<https://github.com/omnone/parser-lexer>
 [alg]: <https://github.com/omnone/GomoryHu>
 [ecomm]: <./e-commerce>
 [soft]: <https://github.com/omnone/MyCeidClass>
