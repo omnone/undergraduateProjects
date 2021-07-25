@@ -14,7 +14,7 @@ Project  | Description | Language, libraries etc
 [Algorithm Engineering][alg] | Implementation of various algorithms like GomoryHu , Dijkstra , A* | C++
 [Programming Languages & Compilers][compil] | Flex/Bison based lexer/parser for lexical and semantic analysis of a dummy , C like language| Bison, Yacc , C
 
-[compil]<https://github.com/omnone/parser-lexer>
+[compil]:<https://github.com/omnone/parser-lexer>
 [alg]: <https://github.com/omnone/GomoryHu>
 [ecomm]: <./e-commerce>
 [soft]: <https://github.com/omnone/MyCeidClass>
